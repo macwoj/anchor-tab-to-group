@@ -18,7 +18,7 @@ Not in v1: protect/save a group for restore if closed (bookmark/storage based).
 Local: `~/workspace/anchor/` (git working copy, branch `main`)
 Remote: [github.com/macwoj/anchor-tab-to-group](https://github.com/macwoj/anchor-tab-to-group) — public, created by user 2026-10-15
 - Load in Chrome via chrome://extensions > Developer mode > Load unpacked > this folder (or `dist/` if we add a build).
-- No build setup yet. Push pending: this machine is not authenticated to GitHub (`gh` not logged in, SSH blocked), so commits stay local until you log in.
+- No build setup yet. This machine is authenticated to GitHub as `macwoj` via `gh` (HTTPS), so commits can be pushed to `main`.
 
 ## Recommended stack for v1
 Vanilla JS, Manifest V3, no dependencies, no build step.

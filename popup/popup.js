@@ -117,8 +117,17 @@ $("remove-anchor").addEventListener("click", async () => {
     await deleteAnchorByTabId(tab.id);
     await clearMarker(tab.id);
     await notifyMarker(tab.id, false); // strip the "⚓ " title prefix
+    // The remaining anchored tabs move in front of this one: let the
+    // worker reconcile the group's layout now that this tab is plain.
+    await chrome.runtime
+      .sendMessage({
+        type: "anchor:reconcile",
+        windowId: tab.windowId,
+        removedTabId: tab.id,
+      })
+      .catch(() => {});
   }
-  status("Anchor removed. The tab stays in its group.");
+  status("Anchor removed — remaining anchored tabs move in front of it.");
   await render();
 });
 

@@ -40,3 +40,8 @@ v0.4 — strict lock:
 - [ ] Drag a tab between the two anchored tabs → it ends up behind both
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
+
+v0.4.1 — remove behavior:
+- [ ] Two anchored tabs → remove the front one's anchor → the other anchored tab moves in front, the removed tab sits right behind it, its badge and “⚓ ” title prefix are gone
+- [ ] Same via the tab right-click menu → “Remove anchor”
+- [ ] Remove the only anchor in a group → tab stays in the group as a plain member, markers gone

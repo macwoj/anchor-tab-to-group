@@ -94,6 +94,9 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.4.1 (2026-10-15) — remove behavior
+- On Remove anchor (popup or context menu), after the anchor is deleted and markers cleared, the window is reconciled: the tab becomes a plain member, so the planner moves the remaining anchored tabs in front of it — it ends up immediately behind the anchored block, still in the group. The worker also re-sends the title-strip message for popup-initiated removals.
+
 ## Documentation (developer.chrome.com, all verified 2026-10-15)
 Core for Anchor:
 - [chrome.tabs](https://developer.chrome.com/docs/extensions/reference/api/tabs) — query/get/move/group/ungroup/update, tab events

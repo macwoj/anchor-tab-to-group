@@ -84,6 +84,11 @@ async function restoreSession() {
 // asks for a strict-layout reconcile after it anchors a tab itself.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "anchor:reconcile") {
+    // After a removal, re-strip the title prefix from the worker too, in
+    // case the popup's own message did not reach the page.
+    if (msg.removedTabId !== undefined) {
+      void notifyMarker(msg.removedTabId, false);
+    }
     scheduleReconcile(msg.windowId);
     return undefined;
   }
@@ -129,6 +134,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await deleteAnchorByTabId(tab.id);
     await clearMarker(tab.id);
     await notifyMarker(tab.id, false); // strip the "⚓ " title prefix
+    scheduleReconcile(tab.windowId); // remaining anchors move in front
   } else if (info.menuItemId === MENU_ANCHOR_TO_GROUP) {
     if (tab.groupId === TAB_GROUP_ID_NONE) return; // not in a group yet
     const group = await getGroup(tab.groupId);

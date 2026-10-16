@@ -47,6 +47,21 @@ test("anchored tab dragged to the back comes back to the front", () => {
   );
 });
 
+test("after removing the front anchor, the remaining anchor moves in front of it", () => {
+  // X just had its anchor removed (not in anchors anymore); A is still
+  // anchored but sits behind a plain tab U.
+  const X = tab("X", 0), U = tab("U", 1), A = tab("A", 2);
+  assert.deepEqual(planGroupLayout([X, U, A], G, [anchorFor(A, 100)]), [
+    { tabId: "A", toIndex: 0 },
+  ]);
+  // Same, with the remaining anchor directly behind the ex-anchor:
+  // desired [A, X, U] — the ex-anchor ends up right behind the block.
+  const X2 = tab("X", 0), A2 = tab("A", 1), U2 = tab("U", 2);
+  assert.deepEqual(planGroupLayout([X2, A2, U2], G, [anchorFor(A2, 100)]), [
+    { tabId: "A", toIndex: 0 },
+  ]);
+});
+
 test("no anchors for the group -> no moves; empty group -> no moves", () => {
   const A = tab("A", 0);
   assert.deepEqual(planGroupLayout([A], G, []), []);

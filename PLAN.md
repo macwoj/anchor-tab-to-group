@@ -94,6 +94,10 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.4.3 (2026-10-16) — mid-session window reopen
+- Bug: closing a window while Chrome kept running preserved its anchors (v0.4.2), but reopening the window/group assigns new window/tab/group ids, and every reconcile is keyed to stored windowIds — orphaned anchors were never re-matched until a full browser restart.
+- Fix: `findOrphanedAnchors` + `rematchOrphanedAnchors()` sweep (re-match by URL + group title via enforceAnchor), triggered on `windows.onCreated` and `tabGroups.onCreated`, coalesced with a dirty-flag re-run; re-matched anchors get their markers re-asserted and their (new) window reconciled.
+
 ## v0.4.1 (2026-10-15) — remove behavior
 - On Remove anchor (popup or context menu), after the anchor is deleted and markers cleared, the window is reconciled: the tab becomes a plain member, so the planner moves the remaining anchored tabs in front of it — it ends up immediately behind the anchored block, still in the group. The worker also re-sends the title-strip message for popup-initiated removals.
 

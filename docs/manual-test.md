@@ -41,6 +41,10 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.4.3 — window close / reopen (browser stays running):
+- [ ] Two windows open; close the window containing an anchored group → reopen it (Ctrl+Shift+T or History → Recently closed) → anchors re-attach: tabs return to the front of their group in anchor order, badges/⚓ title markers back
+- [ ] Same, reopening just the closed group in a new window
+
 v0.4.1 — remove behavior:
 - [ ] Two anchored tabs → remove the front one's anchor → the other anchored tab moves in front, the removed tab sits right behind it, its badge and “⚓ ” title prefix are gone
 - [ ] Same via the tab right-click menu → “Remove anchor”

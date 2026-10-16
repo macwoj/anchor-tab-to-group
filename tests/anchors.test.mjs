@@ -7,6 +7,7 @@ import {
   removeAnchorByTabId,
   findAnchorByTabId,
   shouldForgetAnchor,
+  findOrphanedAnchors,
   findAnchorsByWindow,
   findAnchorsByGroup,
   findGroupForAnchor,
@@ -70,6 +71,17 @@ test("shouldForgetAnchor: window/browser close keeps the anchor", () => {
   assert.equal(shouldForgetAnchor({ isWindowClosing: true, windowId: 1 }), false);
   assert.equal(shouldForgetAnchor({ isWindowClosing: false, windowId: 1 }), true);
   assert.equal(shouldForgetAnchor(undefined), true);
+});
+
+test("findOrphanedAnchors flags anchors with stale window or tab ids", () => {
+  const live = createAnchor(tab, group); // windowId 1, tabId 7
+  const staleWindow = { ...createAnchor(tab, group), windowId: 99, tabId: 8 };
+  const staleTab = { ...createAnchor(tab, group), tabId: 12345 };
+  assert.deepEqual(findOrphanedAnchors([live], [1], [7]), []);
+  assert.deepEqual(
+    findOrphanedAnchors([live, staleWindow, staleTab], [1], [7, 8]),
+    [staleWindow, staleTab]
+  );
 });
 
 test("groupFirstIndex returns the leftmost index of the group", () => {

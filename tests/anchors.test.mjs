@@ -6,6 +6,7 @@ import {
   upsertAnchor,
   removeAnchorByTabId,
   findAnchorByTabId,
+  shouldForgetAnchor,
   findAnchorsByWindow,
   findAnchorsByGroup,
   findGroupForAnchor,
@@ -63,6 +64,12 @@ test("findAnchorsByWindow / ByGroup scope the position-lock re-check", () => {
   assert.deepEqual(findAnchorsByWindow([a, other], 2), [other]);
   assert.deepEqual(findAnchorsByGroup([a, other], 42), [a]);
   assert.deepEqual(findAnchorsByGroup([a, other], 999), []);
+});
+
+test("shouldForgetAnchor: window/browser close keeps the anchor", () => {
+  assert.equal(shouldForgetAnchor({ isWindowClosing: true, windowId: 1 }), false);
+  assert.equal(shouldForgetAnchor({ isWindowClosing: false, windowId: 1 }), true);
+  assert.equal(shouldForgetAnchor(undefined), true);
 });
 
 test("groupFirstIndex returns the leftmost index of the group", () => {

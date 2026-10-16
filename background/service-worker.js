@@ -5,6 +5,7 @@ import {
   createAnchor,
   deleteAnchorByTabId,
   findAnchorByTabId,
+  shouldForgetAnchor,
 } from "../lib/anchors.js";
 import {
   enforceAnchor,
@@ -182,7 +183,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete") void notifyIfAnchored(tabId);
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  // A window/browser closing is not the tab being closed on purpose:
+  // keep the anchor so the tab can be re-matched after a restart.
+  if (!shouldForgetAnchor(removeInfo)) return;
   void deleteAnchorByTabId(tabId);
   void clearMarker(tabId);
 });

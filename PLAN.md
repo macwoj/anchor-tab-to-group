@@ -81,6 +81,10 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 5. [x] Remove anchor + restart re-matching.
 6. [ ] Manual test pass: see docs/manual-test.md — drag out, close group, move windows, restart Chrome.
 
+## v0.2 (2026-10-15)
+- Marker: `lib/marker.js` — per-tab ⚓ badge + "Anchored to <group>" tooltip via chrome.action (no API exists to draw on the tab strip itself).
+- Position lock: service worker now re-checks every anchor in the affected window/group on ANY tab/group event (onMoved/onCreated/onAttached/onDetached/onActivated/onUpdated, tabGroups onUpdated/onMoved), not only the anchored tab's own events; group/move calls retry on Chrome's "Tabs cannot be edited right now" drag error.
+
 ## Documentation (developer.chrome.com, all verified 2026-10-15)
 Core for Anchor:
 - [chrome.tabs](https://developer.chrome.com/docs/extensions/reference/api/tabs) — query/get/move/group/ungroup/update, tab events

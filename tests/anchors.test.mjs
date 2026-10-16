@@ -6,6 +6,8 @@ import {
   upsertAnchor,
   removeAnchorByTabId,
   findAnchorByTabId,
+  findAnchorsByWindow,
+  findAnchorsByGroup,
   findGroupForAnchor,
   findTabForAnchor,
   groupFirstIndex,
@@ -49,6 +51,18 @@ test("findTabForAnchor: id match wins, URL is the restart fallback", () => {
   assert.equal(findTabForAnchor(a, [{ ...tab, id: 55 }]).id, 55);
   assert.equal(findTabForAnchor(a, [tab]).id, 7);
   assert.equal(findTabForAnchor(a, [{ id: 1, url: "https://other/" }]), undefined);
+});
+
+test("findAnchorsByWindow / ByGroup scope the position-lock re-check", () => {
+  const a = createAnchor(tab, group);
+  const other = createAnchor(
+    { id: 8, windowId: 2, groupId: 43, url: "https://x/", title: "X" },
+    { id: 43, windowId: 2, title: "Other", color: "red" }
+  );
+  assert.deepEqual(findAnchorsByWindow([a, other], 1), [a]);
+  assert.deepEqual(findAnchorsByWindow([a, other], 2), [other]);
+  assert.deepEqual(findAnchorsByGroup([a, other], 42), [a]);
+  assert.deepEqual(findAnchorsByGroup([a, other], 999), []);
 });
 
 test("groupFirstIndex returns the leftmost index of the group", () => {

@@ -7,6 +7,7 @@ import {
   findAnchorByTabId,
 } from "../lib/anchors.js";
 import { enforceAnchor } from "../lib/enforce.js";
+import { setMarker, clearMarker } from "../lib/marker.js";
 
 const GROUP_COLORS = {
   grey: "#5f6368", blue: "#1a73e8", red: "#d93025", yellow: "#f9ab00",
@@ -26,6 +27,7 @@ async function anchorTabToGroup(tab, group) {
   const anchor = createAnchor(tab, group);
   await addAnchor(anchor);
   await enforceAnchor(anchor);
+  await setMarker(tab.id, group.title);
   status(`Anchored to “${group.title || group.color}”.`);
   await render();
 }
@@ -41,6 +43,7 @@ async function render() {
   if (existing) {
     $("anchor-group-name").textContent =
       existing.groupTitle || existing.groupColor;
+    void setMarker(tab.id, existing.groupTitle); // keep badge in sync
   }
 
   const groups = await queryGroups({ windowId: tab.windowId });
@@ -64,7 +67,10 @@ async function render() {
 
 $("remove-anchor").addEventListener("click", async () => {
   const tab = await currentTab();
-  if (tab) await deleteAnchorByTabId(tab.id);
+  if (tab) {
+    await deleteAnchorByTabId(tab.id);
+    await clearMarker(tab.id);
+  }
   status("Anchor removed. The tab stays in its group.");
   await render();
 });

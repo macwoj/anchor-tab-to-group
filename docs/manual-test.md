@@ -16,3 +16,11 @@ The extension should load with no errors and show the Anchor icon.
 - [ ] Close the anchored tab → anchor is forgotten (reopen popup on another tab to confirm no stale state errors in the service worker console)
 - [ ] Restart Chrome → anchored tab is re-matched by URL + group title and put back at the front (best-effort)
 - [ ] Ctrl+Shift+A / Cmd+Shift+A opens the popup
+
+v0.2 — marker + position lock:
+- [ ] Anchor a tab → the Anchor toolbar icon shows a ⚓ badge while that tab is active, and hovering it says “Anchored to <group>”
+- [ ] Remove the anchor → badge disappears
+- [ ] Drag a *different* tab in front of the anchored tab → anchored tab returns to the front (position lock)
+- [ ] Open a new tab directly into the group at its front → anchored tab returns to the front
+- [ ] Drag a tab from another window into the group at its front → anchored tab returns to the front
+- [ ] Restart Chrome → badge is restored on the anchored tab

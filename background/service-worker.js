@@ -5,8 +5,11 @@ import {
   createAnchor,
   deleteAnchorByTabId,
   findAnchorByTabId,
+  findAnchorsByWindow,
+  findAnchorsByGroup,
 } from "../lib/anchors.js";
 import { enforceAnchor, enforceAllAnchors } from "../lib/enforce.js";
+import { setMarker, clearMarker, syncMarkers } from "../lib/marker.js";
 
 // Guard against loops: enforcing an anchor fires tab events itself.
 // Record tabs we are currently moving and skip re-entry for a moment.
@@ -32,6 +35,29 @@ async function enforceTab(tabId) {
   if (anchor) await enforceOne(anchor);
 }
 
+// Position lock: another tab moving/being created in front of an anchored
+// tab does not fire an event "for" the anchored tab. So any event in a
+// window/group re-checks every anchor in that window/group.
+async function enforceWindow(windowId) {
+  if (windowId === undefined || windowId < 0) return;
+  const anchors = await loadAnchors();
+  for (const anchor of findAnchorsByWindow(anchors, windowId)) {
+    await enforceOne(anchor);
+  }
+}
+
+async function enforceGroup(groupId) {
+  const anchors = await loadAnchors();
+  for (const anchor of findAnchorsByGroup(anchors, groupId)) {
+    await enforceOne(anchor);
+  }
+}
+
+async function restoreSession() {
+  await enforceAllAnchors();
+  await syncMarkers(await loadAnchors());
+}
+
 // ---- Context menus ----
 
 const MENU_ANCHOR_TO_GROUP = "anchor-to-its-group";
@@ -49,13 +75,14 @@ chrome.runtime.onInstalled.addListener(async () => {
     contexts: ["tab"],
   });
   // Pick up anchors restored from a previous session.
-  await enforceAllAnchors();
+  await restoreSession();
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
   if (info.menuItemId === MENU_REMOVE_ANCHOR) {
     await deleteAnchorByTabId(tab.id);
+    await clearMarker(tab.id);
   } else if (info.menuItemId === MENU_ANCHOR_TO_GROUP) {
     if (tab.groupId === TAB_GROUP_ID_NONE) return; // not in a group yet
     const group = await getGroup(tab.groupId);
@@ -63,28 +90,60 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     const anchor = createAnchor(tab, group);
     await addAnchor(anchor);
     await enforceOne(anchor);
+    await setMarker(tab.id, group.title);
   }
 });
 
 // ---- Guard loop: keep anchored tabs in their group, at the front ----
+// The anchored tab's own events AND any other tab's events in its
+// window/group, because other tabs can push it back from the front.
 
-chrome.tabs.onMoved.addListener((tabId) => void enforceTab(tabId));
-chrome.tabs.onAttached.addListener((tabId) => void enforceTab(tabId));
+chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
+  void enforceTab(tabId);
+  void enforceWindow(moveInfo.windowId);
+});
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+chrome.tabs.onCreated.addListener((tab) => {
+  // A new tab can be created directly into a group, at its front.
+  void enforceWindow(tab.windowId);
+});
+
+chrome.tabs.onAttached.addListener((tabId, attachInfo) => {
+  void enforceTab(tabId);
+  void enforceWindow(attachInfo.newWindowId);
+});
+
+chrome.tabs.onDetached.addListener((tabId, detachInfo) => {
+  void enforceWindow(detachInfo.oldWindowId);
+});
+
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+  // Cheap sweep: catches anything an earlier event missed.
+  void enforceTab(tabId);
+  void enforceWindow(windowId);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // groupId changes when a tab is dragged out / ungrouped / regrouped.
-  if ("groupId" in changeInfo || "pinned" in changeInfo) void enforceTab(tabId);
+  if ("groupId" in changeInfo || "pinned" in changeInfo) {
+    void enforceTab(tabId);
+    if (tab) void enforceWindow(tab.windowId);
+  }
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   void deleteAnchorByTabId(tabId);
+  void clearMarker(tabId);
 });
+
+chrome.tabGroups.onUpdated.addListener((group) => void enforceGroup(group.id));
+chrome.tabGroups.onMoved.addListener((group) => void enforceGroup(group.id));
 
 chrome.tabGroups.onRemoved.addListener(async (group) => {
   // If the group is gone and its anchored tab went with it, onRemoved for
-  // the tab already cleaned up. Nothing else to do in v1.
+  // the tab already cleaned up. Nothing else to do for now.
   void group;
 });
 
 // Re-match anchors (by URL + group title) after a browser restart.
-chrome.runtime.onStartup.addListener(() => void enforceAllAnchors());
+chrome.runtime.onStartup.addListener(() => void restoreSession());

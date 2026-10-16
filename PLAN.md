@@ -34,10 +34,13 @@ anchor/
   popup/
     popup.html popup.js popup.css   # pick current tab -> pick group -> Anchor
   lib/
-    anchors.js             # storage model + re-group / move-to-front logic
+    anchors.js             # storage model + pure helpers (unit-tested)
     chrome-tabs.js         # thin wrappers over chrome.tabs / chrome.tabGroups
+    enforce.js             # re-group + move-to-front logic
   icons/                   # 16/32/48/128
-  tests/                   # manual test checklist first, unit mocks later
+  tests/                   # anchors.test.mjs (npm test)
+  docs/manual-test.md      # manual test checklist
+  package.json             # no dependencies; just the test script + ESM type
   README.md PLAN.md
 ```
 
@@ -71,12 +74,12 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 5. "Remove anchor" from popup removes the anchor.
 
 ## Build order
-1. Scaffold + manifest + icons, load unpacked, verify it loads clean.
-2. Popup: list groups in current window.
-3. Anchor action: group + move-to-front + save to storage.
-4. Guard loop: listeners that re-group anchored tabs.
-5. Remove anchor + restart re-matching.
-6. Manual test pass: drag out, close group, move windows, restart Chrome.
+1. [x] Scaffold + manifest + icons (v0.1.0, 2026-10-15) — load unpacked still to be verified in your Chrome.
+2. [x] Popup: list groups in current window.
+3. [x] Anchor action: group + move-to-front + save to storage.
+4. [x] Guard loop: listeners that re-group anchored tabs.
+5. [x] Remove anchor + restart re-matching.
+6. [ ] Manual test pass: see docs/manual-test.md — drag out, close group, move windows, restart Chrome.
 
 ## Documentation (developer.chrome.com, all verified 2026-10-15)
 Core for Anchor:

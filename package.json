@@ -1,0 +1,1 @@
+{"name":"anchor","private":true,"scripts":{"test":"node --test tests/anchors.test.mjs"},"type":"module","version":"0.1.0"}

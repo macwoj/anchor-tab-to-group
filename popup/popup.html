@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>Anchor</h1>
+  <p id="tab-info" class="muted">Loading current tab…</p>
+
+  <section id="current-anchor" hidden>
+    <p>Anchored to <strong id="anchor-group-name"></strong></p>
+    <button id="remove-anchor" type="button">Remove anchor</button>
+  </section>
+
+  <section id="group-picker">
+    <h2>Anchor to a group</h2>
+    <div id="group-list"></div>
+    <p id="no-groups" class="muted" hidden>No groups in this window yet. Create one below, or in Chrome: right-click a tab → “Add to new group”.</p>
+  </section>
+
+  <section>
+    <h2>New group</h2>
+    <form id="new-group-form">
+      <input id="new-group-name" type="text" placeholder="Group name" autocomplete="off">
+      <button type="submit">Create &amp; anchor</button>
+    </form>
+  </section>
+
+  <p id="status" role="status"></p>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

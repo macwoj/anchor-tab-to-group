@@ -8,6 +8,12 @@ import {
 } from "../lib/anchors.js";
 import { enforceAnchor } from "../lib/enforce.js";
 import { setMarker, clearMarker } from "../lib/marker.js";
+import {
+  hasSiteAccess,
+  requestSiteAccess,
+  enableMarkerForTab,
+  notifyMarker,
+} from "../lib/tab-marker.js";
 
 const GROUP_COLORS = {
   grey: "#5f6368", blue: "#1a73e8", red: "#d93025", yellow: "#f9ab00",
@@ -23,12 +29,24 @@ async function currentTab() {
   return tab;
 }
 
-async function anchorTabToGroup(tab, group) {
+// The on-tab "⚓ " title marker needs optional site access. Ask for it on
+// the anchoring click (a user gesture, which chrome.permissions requires);
+// declining is fine — anchoring still works, with the badge only.
+async function ensureSiteAccess() {
+  if (await hasSiteAccess()) return true;
+  return requestSiteAccess();
+}
+
+async function anchorTabToGroup(tab, group, siteAccess) {
   const anchor = createAnchor(tab, group);
   await addAnchor(anchor);
   await enforceAnchor(anchor);
   await setMarker(tab.id, group.title);
-  status(`Anchored to “${group.title || group.color}”.`);
+  if (siteAccess) await enableMarkerForTab(tab.id);
+  status(
+    `Anchored to “${group.title || group.color}”.` +
+      (siteAccess ? "" : " On-tab marker skipped (site access declined) — badge only.")
+  );
   await render();
 }
 
@@ -60,7 +78,10 @@ async function render() {
     const label = document.createElement("span");
     label.textContent = group.title || "(unnamed group)";
     btn.append(dot, label);
-    btn.addEventListener("click", () => void anchorTabToGroup(tab, group));
+    btn.addEventListener("click", async () => {
+      const siteAccess = await ensureSiteAccess();
+      await anchorTabToGroup(tab, group, siteAccess);
+    });
     list.append(btn);
   }
 }
@@ -70,6 +91,7 @@ $("remove-anchor").addEventListener("click", async () => {
   if (tab) {
     await deleteAnchorByTabId(tab.id);
     await clearMarker(tab.id);
+    await notifyMarker(tab.id, false); // strip the "⚓ " title prefix
   }
   status("Anchor removed. The tab stays in its group.");
   await render();
@@ -77,6 +99,7 @@ $("remove-anchor").addEventListener("click", async () => {
 
 $("new-group-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const siteAccess = await ensureSiteAccess();
   const tab = await currentTab();
   if (!tab) return;
   const name = $("new-group-name").value.trim();
@@ -84,7 +107,7 @@ $("new-group-form").addEventListener("submit", async (e) => {
   const groupId = await groupTabs(tab.id);
   await chrome.tabGroups.update(groupId, { title: name });
   const group = await chrome.tabGroups.get(groupId);
-  await anchorTabToGroup({ ...tab, groupId }, group);
+  await anchorTabToGroup({ ...tab, groupId }, group, siteAccess);
 });
 
 void render();

@@ -24,3 +24,11 @@ v0.2 — marker + position lock:
 - [ ] Open a new tab directly into the group at its front → anchored tab returns to the front
 - [ ] Drag a tab from another window into the group at its front → anchored tab returns to the front
 - [ ] Restart Chrome → badge is restored on the anchored tab
+
+v0.3 — on-tab title marker:
+- [ ] First time anchoring → Chrome asks for optional site access; granting it makes the tab title show “⚓ <title>” in the tab strip
+- [ ] Declining site access → anchoring still works, badge only, popup says so
+- [ ] Site changes its own title (e.g. YouTube / Gmail) → exactly one “⚓ ” prefix, never stacked
+- [ ] Reload / navigate the anchored tab → prefix comes back
+- [ ] Remove the anchor → title returns to the original, no ⚓
+- [ ] Anchor a chrome:// tab → no marker there and no errors (blocked by Chrome, expected)

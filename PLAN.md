@@ -85,6 +85,10 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Marker: `lib/marker.js` — per-tab ⚓ badge + "Anchored to <group>" tooltip via chrome.action (no API exists to draw on the tab strip itself).
 - Position lock: service worker now re-checks every anchor in the affected window/group on ANY tab/group event (onMoved/onCreated/onAttached/onDetached/onActivated/onUpdated, tabGroups onUpdated/onMoved), not only the anchored tab's own events; group/move calls retry on Chrome's "Tabs cannot be edited right now" drag error.
 
+## v0.3 (2026-10-15)
+- On-tab marker (title prefix only; favicon overlay was offered and declined): `content/tab-marker.js` prepends "⚓ " to `document.title` on anchored tabs and re-applies it via MutationObserver when sites change their title; removing the anchor restores the clean title.
+- Access model: `scripting` permission + `optional_host_permissions: ["*://*/*"]`, requested from the popup on the first anchoring click; the content script is registered dynamically (`chrome.scripting.registerContentScripts`, persistAcrossSessions) and self-disables on non-anchored tabs (asks the worker `anchor:is-anchored`). No marker on chrome:// / Web Store / PDF pages.
+
 ## Documentation (developer.chrome.com, all verified 2026-10-15)
 Core for Anchor:
 - [chrome.tabs](https://developer.chrome.com/docs/extensions/reference/api/tabs) — query/get/move/group/ungroup/update, tab events

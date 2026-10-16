@@ -10,6 +10,11 @@ import {
 } from "../lib/anchors.js";
 import { enforceAnchor, enforceAllAnchors } from "../lib/enforce.js";
 import { setMarker, clearMarker, syncMarkers } from "../lib/marker.js";
+import {
+  ensureMarkerScriptRegistered,
+  enableMarkerForTab,
+  notifyMarker,
+} from "../lib/tab-marker.js";
 
 // Guard against loops: enforcing an anchor fires tab events itself.
 // Record tabs we are currently moving and skip re-entry for a moment.
@@ -54,8 +59,28 @@ async function enforceGroup(groupId) {
 }
 
 async function restoreSession() {
+  // Registers the on-tab marker script if site access was granted before.
+  await ensureMarkerScriptRegistered().catch(() => {});
   await enforceAllAnchors();
   await syncMarkers(await loadAnchors());
+}
+
+// Content scripts ask whether their tab is anchored.
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type !== "anchor:is-anchored") return undefined;
+  (async () => {
+    const tabId = sender.tab?.id;
+    const anchors = await loadAnchors();
+    sendResponse({
+      anchored: tabId !== undefined && Boolean(findAnchorByTabId(anchors, tabId)),
+    });
+  })();
+  return true; // keep the channel open for the async response
+});
+
+async function notifyIfAnchored(tabId) {
+  const anchors = await loadAnchors();
+  if (findAnchorByTabId(anchors, tabId)) await notifyMarker(tabId, true);
 }
 
 // ---- Context menus ----
@@ -83,6 +108,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === MENU_REMOVE_ANCHOR) {
     await deleteAnchorByTabId(tab.id);
     await clearMarker(tab.id);
+    await notifyMarker(tab.id, false); // strip the "⚓ " title prefix
   } else if (info.menuItemId === MENU_ANCHOR_TO_GROUP) {
     if (tab.groupId === TAB_GROUP_ID_NONE) return; // not in a group yet
     const group = await getGroup(tab.groupId);
@@ -91,6 +117,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await addAnchor(anchor);
     await enforceOne(anchor);
     await setMarker(tab.id, group.title);
+    // On-tab marker only if site access was already granted — a context
+    // menu click in the worker cannot request permissions (needs the popup).
+    await enableMarkerForTab(tab.id);
   }
 });
 
@@ -129,6 +158,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     void enforceTab(tabId);
     if (tab) void enforceWindow(tab.windowId);
   }
+  // A finished navigation is a new document: re-assert the title marker.
+  if (changeInfo.status === "complete") void notifyIfAnchored(tabId);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

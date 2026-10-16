@@ -7,7 +7,8 @@ Chrome cannot have a tab both natively pinned and grouped at the same time — t
 See [PLAN.md](PLAN.md) for the project plan, how tabs/groups work, and links to the official Chrome extension documentation.
 
 Repo: https://github.com/macwoj/anchor-tab-to-group
-Status: v0.3.0 — working code, not yet manually tested in Chrome.
+Status: v0.4.0 — v0.1–v0.3 manually tested by the user in Chrome (marker gap and drag-in-front failure found and addressed); v0.4 changes not yet re-tested.
+v0.4 adds: the strict lock — a group-layout reconciler keeps anchored tabs as a front block ordered by when they were anchored (first anchored, front-most); other tabs always end up behind them. (Chrome can't veto a drag itself, so the snap-back on drop is made deterministic: no event-skip window, queued re-runs, deferred re-checks.)
 v0.3 adds: an on-tab marker — anchored tabs show “⚓ ” at the start of their title in the tab strip. This needs optional site access (requested the first time you anchor; decline and anchoring still works, badge only). Blocked on chrome:// and similar pages.
 v0.2 adds: a ⚓ badge marker on the toolbar icon for anchored tabs (with an “Anchored to …” tooltip), and a position lock — other tabs can no longer push the anchored tab back from the front of its group.
 

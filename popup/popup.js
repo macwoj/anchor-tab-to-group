@@ -43,6 +43,10 @@ async function anchorTabToGroup(tab, group, siteAccess) {
   await enforceAnchor(anchor);
   await setMarker(tab.id, group.title);
   if (siteAccess) await enableMarkerForTab(tab.id);
+  // Let the worker impose the strict multi-anchor order for the group.
+  await chrome.runtime
+    .sendMessage({ type: "anchor:reconcile", windowId: tab.windowId })
+    .catch(() => {});
   status(
     `Anchored to “${group.title || group.color}”.` +
       (siteAccess ? "" : " On-tab marker skipped (site access declined) — badge only.")

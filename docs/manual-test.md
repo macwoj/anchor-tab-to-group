@@ -32,3 +32,11 @@ v0.3 — on-tab title marker:
 - [ ] Reload / navigate the anchored tab → prefix comes back
 - [ ] Remove the anchor → title returns to the original, no ⚓
 - [ ] Anchor a chrome:// tab → no marker there and no errors (blocked by Chrome, expected)
+
+v0.4 — strict lock:
+- [ ] Drag another tab in front of the anchored tab and drop → anchored tab snaps back to the front immediately
+- [ ] Same, but with a slow drag (hold >2s before dropping) → still snaps back
+- [ ] Anchor two tabs in one group → they sit at the front in the order anchored (first anchored = front-most)
+- [ ] Drag a tab between the two anchored tabs → it ends up behind both
+- [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
+- [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot

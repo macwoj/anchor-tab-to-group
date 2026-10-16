@@ -5,10 +5,12 @@ import {
   createAnchor,
   deleteAnchorByTabId,
   findAnchorByTabId,
-  findAnchorsByWindow,
-  findAnchorsByGroup,
 } from "../lib/anchors.js";
-import { enforceAnchor, enforceAllAnchors } from "../lib/enforce.js";
+import {
+  enforceAnchor,
+  enforceAllAnchors,
+  reconcileWindow,
+} from "../lib/enforce.js";
 import { setMarker, clearMarker, syncMarkers } from "../lib/marker.js";
 import {
   ensureMarkerScriptRegistered,
@@ -16,46 +18,50 @@ import {
   notifyMarker,
 } from "../lib/tab-marker.js";
 
-// Guard against loops: enforcing an anchor fires tab events itself.
-// Record tabs we are currently moving and skip re-entry for a moment.
-const inFlight = new Map(); // tabId -> timestamp
-const IN_FLIGHT_MS = 1500;
+// ---- Strict-lock scheduler ----
+// Every tab/group event schedules a reconcile of its window. There is NO
+// time-based skip (v0.2's 1500 ms in-flight window could eat the decisive
+// drop event): if an event arrives while a reconcile is running, the
+// window is marked dirty and reconciled once more right after, so the
+// last event always gets a pass. Reconciling is cheap — the layout
+// planner returns no moves when the group is already correct, which is
+// also what stops our own moves from looping forever.
+const running = new Set(); // windowId
+const dirty = new Set(); // windowId
+const deferredTimers = new Map(); // windowId -> [timer, timer]
 
-async function enforceOne(anchor) {
-  const now = Date.now();
-  if (now - (inFlight.get(anchor.tabId) ?? 0) < IN_FLIGHT_MS) return;
-  inFlight.set(anchor.tabId, now);
+async function runReconcile(windowId) {
+  if (running.has(windowId)) {
+    dirty.add(windowId);
+    return;
+  }
+  running.add(windowId);
   try {
-    await enforceAnchor(anchor);
+    do {
+      dirty.delete(windowId);
+      await reconcileWindow(windowId);
+    } while (dirty.has(windowId));
   } catch (err) {
-    console.debug("Anchor: enforce failed, will retry on next event", err);
+    console.debug("Anchor: reconcile failed", err);
   } finally {
-    setTimeout(() => inFlight.delete(anchor.tabId), IN_FLIGHT_MS);
+    running.delete(windowId);
   }
 }
 
-async function enforceTab(tabId) {
-  const anchors = await loadAnchors();
-  const anchor = findAnchorByTabId(anchors, tabId);
-  if (anchor) await enforceOne(anchor);
-}
-
-// Position lock: another tab moving/being created in front of an anchored
-// tab does not fire an event "for" the anchored tab. So any event in a
-// window/group re-checks every anchor in that window/group.
-async function enforceWindow(windowId) {
+function scheduleReconcile(windowId, { deferred = true } = {}) {
   if (windowId === undefined || windowId < 0) return;
-  const anchors = await loadAnchors();
-  for (const anchor of findAnchorsByWindow(anchors, windowId)) {
-    await enforceOne(anchor);
-  }
-}
-
-async function enforceGroup(groupId) {
-  const anchors = await loadAnchors();
-  for (const anchor of findAnchorsByGroup(anchors, groupId)) {
-    await enforceOne(anchor);
-  }
+  void runReconcile(windowId);
+  if (!deferred) return;
+  // Post-drop re-checks: Chrome can refuse moves around a drag; a fresh
+  // pass shortly after catches anything the immediate pass missed.
+  const old = deferredTimers.get(windowId) ?? [];
+  old.forEach(clearTimeout);
+  deferredTimers.set(
+    windowId,
+    [300, 1000].map((ms) =>
+      setTimeout(() => void runReconcile(windowId), ms)
+    )
+  );
 }
 
 async function restoreSession() {
@@ -64,15 +70,23 @@ async function restoreSession() {
   await enforceAllAnchors();
   const anchors = await loadAnchors();
   await syncMarkers(anchors);
-  // Re-assert the title marker on already-loaded tabs (no-ops without
-  // site access, and on pages where injection is blocked).
+  // Strict layout per window, and re-assert the title marker on
+  // already-loaded tabs (no-ops without site access / on blocked pages).
+  for (const windowId of new Set(anchors.map((a) => a.windowId))) {
+    await reconcileWindow(windowId).catch(() => {});
+  }
   for (const anchor of anchors) {
     await enableMarkerForTab(anchor.tabId).catch(() => {});
   }
 }
 
-// Content scripts ask whether their tab is anchored.
+// Messages: content scripts ask whether their tab is anchored; the popup
+// asks for a strict-layout reconcile after it anchors a tab itself.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "anchor:reconcile") {
+    scheduleReconcile(msg.windowId);
+    return undefined;
+  }
   if (msg?.type !== "anchor:is-anchored") return undefined;
   (async () => {
     const tabId = sender.tab?.id;
@@ -121,48 +135,42 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (!group) return;
     const anchor = createAnchor(tab, group);
     await addAnchor(anchor);
-    await enforceOne(anchor);
+    await enforceAnchor(anchor);
     await setMarker(tab.id, group.title);
     // On-tab marker only if site access was already granted — a context
     // menu click in the worker cannot request permissions (needs the popup).
     await enableMarkerForTab(tab.id);
+    scheduleReconcile(tab.windowId);
   }
 });
 
-// ---- Guard loop: keep anchored tabs in their group, at the front ----
-// The anchored tab's own events AND any other tab's events in its
-// window/group, because other tabs can push it back from the front.
+// ---- Guard loop: the strict lock ----
+// ANY tab/group event in a window reconciles that window's groups: an
+// intruder tab's own event is what pushes an anchored tab back, so
+// reacting only to the anchored tab's events is not enough.
 
-chrome.tabs.onMoved.addListener((tabId, moveInfo) => {
-  void enforceTab(tabId);
-  void enforceWindow(moveInfo.windowId);
-});
+chrome.tabs.onMoved.addListener((_tabId, moveInfo) =>
+  scheduleReconcile(moveInfo.windowId)
+);
 
-chrome.tabs.onCreated.addListener((tab) => {
-  // A new tab can be created directly into a group, at its front.
-  void enforceWindow(tab.windowId);
-});
+chrome.tabs.onCreated.addListener((tab) => scheduleReconcile(tab.windowId));
 
-chrome.tabs.onAttached.addListener((tabId, attachInfo) => {
-  void enforceTab(tabId);
-  void enforceWindow(attachInfo.newWindowId);
-});
+chrome.tabs.onAttached.addListener((_tabId, attachInfo) =>
+  scheduleReconcile(attachInfo.newWindowId)
+);
 
-chrome.tabs.onDetached.addListener((tabId, detachInfo) => {
-  void enforceWindow(detachInfo.oldWindowId);
-});
+chrome.tabs.onDetached.addListener((_tabId, detachInfo) =>
+  scheduleReconcile(detachInfo.oldWindowId)
+);
 
-chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
-  // Cheap sweep: catches anything an earlier event missed.
-  void enforceTab(tabId);
-  void enforceWindow(windowId);
-});
+chrome.tabs.onActivated.addListener(({ windowId }) =>
+  scheduleReconcile(windowId)
+);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // groupId changes when a tab is dragged out / ungrouped / regrouped.
   if ("groupId" in changeInfo || "pinned" in changeInfo) {
-    void enforceTab(tabId);
-    if (tab) void enforceWindow(tab.windowId);
+    if (tab) scheduleReconcile(tab.windowId);
   }
   // A finished navigation is a new document: re-assert the title marker.
   if (changeInfo.status === "complete") void notifyIfAnchored(tabId);
@@ -173,8 +181,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   void clearMarker(tabId);
 });
 
-chrome.tabGroups.onUpdated.addListener((group) => void enforceGroup(group.id));
-chrome.tabGroups.onMoved.addListener((group) => void enforceGroup(group.id));
+chrome.tabGroups.onUpdated.addListener((group) =>
+  scheduleReconcile(group.windowId)
+);
+chrome.tabGroups.onMoved.addListener((group) =>
+  scheduleReconcile(group.windowId)
+);
 
 chrome.tabGroups.onRemoved.addListener(async (group) => {
   // If the group is gone and its anchored tab went with it, onRemoved for

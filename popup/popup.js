@@ -58,10 +58,19 @@ async function render() {
   const anchors = await loadAnchors();
   const existing = findAnchorByTabId(anchors, tab.id);
   $("current-anchor").hidden = !existing;
+  $("enable-marker").hidden = true;
   if (existing) {
     $("anchor-group-name").textContent =
       existing.groupTitle || existing.groupColor;
     void setMarker(tab.id, existing.groupTitle); // keep badge in sync
+    // Anchors created before v0.3, via the context menu, or with the
+    // permission prompt missed never got the on-tab marker. Heal that:
+    // enable it if access exists, otherwise offer the button below.
+    if (await hasSiteAccess()) {
+      void enableMarkerForTab(tab.id);
+    } else {
+      $("enable-marker").hidden = false;
+    }
   }
 
   const groups = await queryGroups({ windowId: tab.windowId });
@@ -85,6 +94,18 @@ async function render() {
     list.append(btn);
   }
 }
+
+$("enable-marker").addEventListener("click", async () => {
+  const granted = await requestSiteAccess();
+  const tab = await currentTab();
+  if (granted && tab) {
+    await enableMarkerForTab(tab.id);
+    status("On-tab marker on — this tab’s title now starts with ⚓.");
+  } else {
+    status("Site access declined — badge only.");
+  }
+  await render();
+});
 
 $("remove-anchor").addEventListener("click", async () => {
   const tab = await currentTab();

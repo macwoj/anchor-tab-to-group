@@ -62,7 +62,13 @@ async function restoreSession() {
   // Registers the on-tab marker script if site access was granted before.
   await ensureMarkerScriptRegistered().catch(() => {});
   await enforceAllAnchors();
-  await syncMarkers(await loadAnchors());
+  const anchors = await loadAnchors();
+  await syncMarkers(anchors);
+  // Re-assert the title marker on already-loaded tabs (no-ops without
+  // site access, and on pages where injection is blocked).
+  for (const anchor of anchors) {
+    await enableMarkerForTab(anchor.tabId).catch(() => {});
+  }
 }
 
 // Content scripts ask whether their tab is anchored.

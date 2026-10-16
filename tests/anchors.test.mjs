@@ -48,6 +48,12 @@ test("findGroupForAnchor: id match wins, title is the restart fallback", () => {
   assert.equal(findGroupForAnchor(a, []), undefined);
 });
 
+test("findTabForAnchor matches a still-loading restored tab by pendingUrl", () => {
+  const a = createAnchor(tab, group);
+  const loading = { id: 91, url: "", pendingUrl: "https://example.com/" };
+  assert.equal(findTabForAnchor(a, [loading]).id, 91);
+});
+
 test("findTabForAnchor: id match wins, URL is the restart fallback", () => {
   const a = createAnchor(tab, group);
   assert.equal(findTabForAnchor(a, [{ ...tab, id: 55 }]).id, 55);

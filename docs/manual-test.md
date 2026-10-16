@@ -41,6 +41,10 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.4.4 — toolbar badge after restore:
+- [ ] Restart Chrome → restored anchored tabs show the ⚓ badge on the toolbar icon when active (not just the title prefix), without opening the popup
+- [ ] Close a group window and reopen it (other windows open) → re-matched tabs show the ⚓ badge too
+
 v0.4.3 — window close / reopen (browser stays running):
 - [ ] Two windows open; close the window containing an anchored group → reopen it (Ctrl+Shift+T or History → Recently closed) → anchors re-attach: tabs return to the front of their group in anchor order, badges/⚓ title markers back
 - [ ] Same, reopening just the closed group in a new window

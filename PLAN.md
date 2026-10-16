@@ -94,6 +94,10 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.4.4 (2026-10-16) — badge not re-applied after restore
+- Bug: the toolbar badge was only set in one startup pass; on restart/window-restore that pass can run before the restored tabs exist (and their ids are new), so the per-tab badge calls failed silently and nothing retried. The tab-finished-loading hook only re-asserted the title prefix, never the badge.
+- Fix: new `syncTabMarkers(tabId)` re-asserts badge + title marker whenever a tab finishes loading or is activated, and kicks the orphan sweep when the tab isn't anchored under its current id; the sweep also runs on tabs.onCreated; `findTabForAnchor` now matches `pendingUrl` so still-loading restored tabs can re-match.
+
 ## v0.4.3 (2026-10-16) — mid-session window reopen
 - Bug: closing a window while Chrome kept running preserved its anchors (v0.4.2), but reopening the window/group assigns new window/tab/group ids, and every reconcile is keyed to stored windowIds — orphaned anchors were never re-matched until a full browser restart.
 - Fix: `findOrphanedAnchors` + `rematchOrphanedAnchors()` sweep (re-match by URL + group title via enforceAnchor), triggered on `windows.onCreated` and `tabGroups.onCreated`, coalesced with a dirty-flag re-run; re-matched anchors get their markers re-asserted and their (new) window reconciled.

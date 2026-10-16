@@ -134,9 +134,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true; // keep the channel open for the async response
 });
 
-async function notifyIfAnchored(tabId) {
+// Re-assert BOTH markers (toolbar badge + title prefix) for one tab.
+// A single startup sync is not enough: on browser restart / window
+// restore, that pass can run before the restored tabs exist, and the
+// per-tab badge calls then fail silently against stale tab ids. So this
+// runs whenever a tab finishes loading or becomes active — points where
+// the tab definitely exists. If the tab isn't anchored under its current
+// id, it may be a restored tab whose anchor is still orphaned: sweep.
+async function syncTabMarkers(tabId) {
   const anchors = await loadAnchors();
-  if (findAnchorByTabId(anchors, tabId)) await notifyMarker(tabId, true);
+  const anchor = findAnchorByTabId(anchors, tabId);
+  if (anchor) {
+    await setMarker(tabId, anchor.groupTitle);
+    await notifyMarker(tabId, true);
+  } else {
+    void runRematch();
+  }
 }
 
 // ---- Context menus ----
@@ -190,7 +203,12 @@ chrome.tabs.onMoved.addListener((_tabId, moveInfo) =>
   scheduleReconcile(moveInfo.windowId)
 );
 
-chrome.tabs.onCreated.addListener((tab) => scheduleReconcile(tab.windowId));
+chrome.tabs.onCreated.addListener((tab) => {
+  scheduleReconcile(tab.windowId);
+  // Restored sessions create their tabs one by one; each creation is a
+  // chance to re-match orphans whose tabs have now materialized.
+  void runRematch();
+});
 
 chrome.tabs.onAttached.addListener((_tabId, attachInfo) =>
   scheduleReconcile(attachInfo.newWindowId)
@@ -200,17 +218,19 @@ chrome.tabs.onDetached.addListener((_tabId, detachInfo) =>
   scheduleReconcile(detachInfo.oldWindowId)
 );
 
-chrome.tabs.onActivated.addListener(({ windowId }) =>
-  scheduleReconcile(windowId)
-);
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+  scheduleReconcile(windowId);
+  void syncTabMarkers(tabId);
+});
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // groupId changes when a tab is dragged out / ungrouped / regrouped.
   if ("groupId" in changeInfo || "pinned" in changeInfo) {
     if (tab) scheduleReconcile(tab.windowId);
   }
-  // A finished navigation is a new document: re-assert the title marker.
-  if (changeInfo.status === "complete") void notifyIfAnchored(tabId);
+  // A finished navigation is a new document on a tab that definitely
+  // exists now: re-assert both markers (badge + title prefix).
+  if (changeInfo.status === "complete") void syncTabMarkers(tabId);
 });
 
 // A (re)opened window or group is where orphaned anchors come back:

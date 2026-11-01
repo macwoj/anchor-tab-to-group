@@ -94,6 +94,9 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.5.1 (2026-11-01) — duplicate context-menu ids on restart
+- Menus are created in onInstalled, but Chrome keeps them across restarts while onInstalled fires again on every load of an unpacked extension (and on every update) — the second create threw "Cannot create item with duplicate id". Fixed by removeAll() before creating. Harmless before the fix (the original menus kept working); only console noise.
+
 ## v0.5.0 (2026-11-01) — reopen prompt (replaces the beforeunload idea)
 - On individual tab close (not window close), the anchor moves to a new `closedAnchors` storage list (cap 10, keyed by tabUrl, original createdAt kept) instead of being deleted; the worker shows a chrome.notifications notification (Reopen/Dismiss, requireInteraction) and the popup lists entries under "Recently closed".
 - Reopen recreates the tab in its original window (or the current window), recreates its group by title+color if gone, re-anchors with the original createdAt (old slot in the anchored order), reconciles, and re-asserts markers. Setting `reopenPrompt` (lib/settings.js) defaults to true, toggled by a popup checkbox. New `notifications` permission. Limits: page state is lost on reopen; chrome:// URLs can't be recreated (no prompt); window closes are excluded.

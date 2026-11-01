@@ -218,6 +218,11 @@ const MENU_ANCHOR_TO_GROUP = "anchor-to-its-group";
 const MENU_REMOVE_ANCHOR = "anchor-remove";
 
 chrome.runtime.onInstalled.addListener(async () => {
+  // Context menus persist across browser restarts, but onInstalled fires
+  // again on every load of an unpacked extension (and on every update of
+  // a packed one) — creating the same ids twice throws "duplicate id".
+  // Clear first so re-creation is always safe.
+  await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: MENU_ANCHOR_TO_GROUP,
     title: "Anchor tab to its group",

@@ -28,6 +28,19 @@
     </form>
   </section>
 
+  <section id="recently-closed" hidden>
+    <h2>Recently closed</h2>
+    <div id="closed-list"></div>
+  </section>
+
+  <section>
+    <h2>Settings</h2>
+    <label>
+      <input id="reopen-prompt" type="checkbox" checked>
+      Offer to reopen anchored tabs after closing
+    </label>
+  </section>
+
   <p id="status" role="status"></p>
   <script type="module" src="popup.js"></script>
 </body>

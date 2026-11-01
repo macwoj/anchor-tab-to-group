@@ -6,7 +6,18 @@ import {
   deleteAnchorByTabId,
   findAnchorByTabId,
   shouldForgetAnchor,
+  loadClosedAnchors,
+  findClosedAnchor,
+  addClosedAnchor,
+  deleteClosedAnchor,
 } from "../lib/anchors.js";
+import { loadSettings } from "../lib/settings.js";
+import {
+  notifyClosedAnchor,
+  reopenClosedAnchor,
+  closedNotificationId,
+  isReopenableUrl,
+} from "../lib/reopen.js";
 import {
   enforceAnchor,
   enforceAllAnchors,
@@ -111,9 +122,58 @@ async function restoreSession() {
   }
 }
 
+// Reopen prompt: shared by the notification button and the popup's
+// "Recently closed" list. Looks the entry up, removes it, and reopens.
+async function reopenClosed(tabUrl) {
+  const closed = await loadClosedAnchors();
+  const entry = findClosedAnchor(closed, tabUrl);
+  if (!entry) return "not-found";
+  if (!isReopenableUrl(entry.tabUrl)) return "not-reopenable";
+  await deleteClosedAnchor(tabUrl);
+  await chrome.notifications.clear(closedNotificationId(tabUrl)).catch(() => {});
+  const status = await reopenClosedAnchor(entry);
+  if (status === "reopened") {
+    const anchors = await loadAnchors();
+    const anchor = anchors.find((a) => a.tabUrl === tabUrl);
+    if (anchor) {
+      await setMarker(anchor.tabId, anchor.groupTitle);
+      await enableMarkerForTab(anchor.tabId).catch(() => {});
+    }
+  }
+  return status;
+}
+
+chrome.notifications.onButtonClicked.addListener(async (id, buttonIndex) => {
+  if (!id.startsWith("anchor-closed:")) return;
+  const tabUrl = id.slice("anchor-closed:".length);
+  if (buttonIndex === 0) {
+    await reopenClosed(tabUrl);
+  } else {
+    // Dismiss: forget the closed entry (the notification X alone does
+    // not — the popup entry stays as the persistent surface).
+    await deleteClosedAnchor(tabUrl);
+    await chrome.notifications.clear(id).catch(() => {});
+  }
+});
+
 // Messages: content scripts ask whether their tab is anchored; the popup
-// asks for a strict-layout reconcile after it anchors a tab itself.
+// asks for a strict-layout reconcile after it anchors a tab itself, and
+// for reopen/dismiss of recently closed anchors.
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "anchor:reopen-closed") {
+    (async () => sendResponse({ status: await reopenClosed(msg.tabUrl) }))();
+    return true;
+  }
+  if (msg?.type === "anchor:dismiss-closed") {
+    (async () => {
+      await deleteClosedAnchor(msg.tabUrl);
+      await chrome.notifications
+        .clear(closedNotificationId(msg.tabUrl))
+        .catch(() => {});
+      sendResponse({ status: "dismissed" });
+    })();
+    return true;
+  }
   if (msg?.type === "anchor:reconcile") {
     // After a removal, re-strip the title prefix from the worker too, in
     // case the popup's own message did not reach the page.
@@ -242,8 +302,25 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   // A window/browser closing is not the tab being closed on purpose:
   // keep the anchor so the tab can be re-matched after a restart.
   if (!shouldForgetAnchor(removeInfo)) return;
-  void deleteAnchorByTabId(tabId);
-  void clearMarker(tabId);
+  void (async () => {
+    const anchors = await loadAnchors();
+    const anchor = findAnchorByTabId(anchors, tabId);
+    await deleteAnchorByTabId(tabId);
+    await clearMarker(tabId);
+    // Reopen prompt (default on): instead of forgetting the anchor,
+    // move it to the recently-closed list and offer to bring it back.
+    // Window closes are excluded above, and chrome:// URLs can't be
+    // recreated, so those anchors are simply forgotten.
+    if (anchor && isReopenableUrl(anchor.tabUrl)) {
+      const settings = await loadSettings();
+      if (settings.reopenPrompt !== false) {
+        await addClosedAnchor(anchor);
+        await notifyClosedAnchor(anchor).catch((err) =>
+          console.debug("Anchor: closed notification failed", err)
+        );
+      }
+    }
+  })();
 });
 
 chrome.tabGroups.onUpdated.addListener((group) =>

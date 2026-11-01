@@ -8,6 +8,9 @@ import {
   findAnchorByTabId,
   shouldForgetAnchor,
   findOrphanedAnchors,
+  moveAnchorToClosed,
+  findClosedAnchor,
+  removeClosedAnchor,
   findAnchorsByWindow,
   findAnchorsByGroup,
   findGroupForAnchor,
@@ -87,6 +90,30 @@ test("findOrphanedAnchors flags anchors with stale window or tab ids", () => {
   assert.deepEqual(
     findOrphanedAnchors([live, staleWindow, staleTab], [1], [7, 8]),
     [staleWindow, staleTab]
+  );
+});
+
+test("moveAnchorToClosed moves the anchor aside and caps the list", () => {
+  const a = createAnchor(tab, group);
+  const { anchors, closed } = moveAnchorToClosed([a], [], a, 1000, 2);
+  assert.deepEqual(anchors, []);
+  assert.equal(closed.length, 1);
+  assert.equal(closed[0].closedAt, 1000);
+  assert.equal(closed[0].createdAt, a.createdAt);
+
+  // Re-closing the same URL replaces the older entry; cap keeps newest.
+  const b = { ...createAnchor(tab, group), tabUrl: "https://b/" };
+  const c = { ...createAnchor(tab, group), tabUrl: "https://c/" };
+  const second = moveAnchorToClosed([b], closed, b, 2000, 2);
+  const third = moveAnchorToClosed([c], second.closed, c, 3000, 2);
+  assert.deepEqual(
+    third.closed.map((x) => x.tabUrl),
+    ["https://b/", "https://c/"]
+  );
+  assert.equal(findClosedAnchor(third.closed, "https://b/").closedAt, 2000);
+  assert.deepEqual(
+    removeClosedAnchor(third.closed, "https://b/").map((x) => x.tabUrl),
+    ["https://c/"]
   );
 });
 

@@ -5,7 +5,9 @@ import {
   createAnchor,
   deleteAnchorByTabId,
   findAnchorByTabId,
+  loadClosedAnchors,
 } from "../lib/anchors.js";
+import { loadSettings, saveSettings } from "../lib/settings.js";
 import { enforceAnchor } from "../lib/enforce.js";
 import { setMarker, clearMarker } from "../lib/marker.js";
 import {
@@ -77,6 +79,48 @@ async function render() {
     }
   }
 
+  // Settings checkbox (default on when nothing is stored yet).
+  $("reopen-prompt").checked = (await loadSettings()).reopenPrompt !== false;
+
+  // Recently closed anchored tabs: Reopen restores tab + group + anchor
+  // (original anchor order preserved); Dismiss forgets the entry.
+  const closed = await loadClosedAnchors();
+  $("recently-closed").hidden = closed.length === 0;
+  const closedList = $("closed-list");
+  closedList.replaceChildren();
+  for (const entry of closed) {
+    const row = document.createElement("div");
+    const label = document.createElement("span");
+    label.textContent = `${entry.tabTitle || entry.tabUrl} (${entry.groupTitle || "group"})`;
+    const reopenBtn = document.createElement("button");
+    reopenBtn.type = "button";
+    reopenBtn.textContent = "Reopen";
+    reopenBtn.addEventListener("click", async () => {
+      const resp = await chrome.runtime.sendMessage({
+        type: "anchor:reopen-closed",
+        tabUrl: entry.tabUrl,
+      });
+      status(
+        resp?.status === "reopened"
+          ? `Reopened “${entry.tabTitle || entry.tabUrl}”.`
+          : `Could not reopen “${entry.tabTitle || entry.tabUrl}”.`
+      );
+      await render();
+    });
+    const dismissBtn = document.createElement("button");
+    dismissBtn.type = "button";
+    dismissBtn.textContent = "Dismiss";
+    dismissBtn.addEventListener("click", async () => {
+      await chrome.runtime.sendMessage({
+        type: "anchor:dismiss-closed",
+        tabUrl: entry.tabUrl,
+      });
+      await render();
+    });
+    row.append(label, reopenBtn, dismissBtn);
+    closedList.append(row);
+  }
+
   const groups = await queryGroups({ windowId: tab.windowId });
   const list = $("group-list");
   list.replaceChildren();
@@ -98,6 +142,10 @@ async function render() {
     list.append(btn);
   }
 }
+
+$("reopen-prompt").addEventListener("change", async (e) => {
+  await saveSettings({ reopenPrompt: e.target.checked });
+});
 
 $("enable-marker").addEventListener("click", async () => {
   const granted = await requestSiteAccess();

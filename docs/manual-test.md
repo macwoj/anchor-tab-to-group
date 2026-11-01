@@ -41,6 +41,16 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.5.0 — reopen prompt:
+- [ ] Close an anchored tab (individually, not a whole window) → notification “Anchored tab closed” with Reopen/Dismiss; popup shows it under Recently closed
+- [ ] Reopen from the notification → tab returns to its window and group, in its old anchored slot, badge + ⚓ title back
+- [ ] Dismiss from the notification → entry gone from popup too
+- [ ] Close an anchored tab, ignore the notification, restart Chrome → popup Recently closed still lists it; Reopen works
+- [ ] Close a whole window containing anchored tabs → no per-tab notifications (anchors kept for re-match instead)
+- [ ] Close an unanchored tab → no notification, no popup entry
+- [ ] Uncheck “Offer to reopen…” in the popup → closing an anchored tab forgets it silently (old behavior); re-check → prompt returns
+- [ ] Close a chrome:// anchored tab → no prompt (can't be recreated), anchor forgotten
+
 v0.4.4 — toolbar badge after restore:
 - [ ] Restart Chrome → restored anchored tabs show the ⚓ badge on the toolbar icon when active (not just the title prefix), without opening the popup
 - [ ] Close a group window and reopen it (other windows open) → re-matched tabs show the ⚓ badge too

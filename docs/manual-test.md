@@ -41,6 +41,9 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.5.2 — reopen round-trip:
+- [ ] Close an anchored tab → Reopen from popup → close that tab again → it reappears under Recently closed (regression: used to vanish)
+
 v0.5.1 — context menus on restart:
 - [ ] Restart Chrome with the unpacked extension loaded → no "duplicate id" errors in the service worker console; right-clicking a tab still shows "Anchor tab to its group" / "Remove anchor"
 

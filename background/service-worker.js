@@ -321,7 +321,9 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
       if (settings.reopenPrompt !== false) {
         await addClosedAnchor(anchor);
         await notifyClosedAnchor(anchor).catch((err) =>
-          console.debug("Anchor: closed notification failed", err)
+          // Warn, not debug: a failed notification is otherwise invisible
+          // (the popup entry still appears, so the close looks silent).
+          console.warn("Anchor: closed notification failed", err)
         );
       }
     }

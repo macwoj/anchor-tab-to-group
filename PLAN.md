@@ -94,6 +94,9 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.5.2 (2026-11-01) — reopened tab not re-listed on second close
+- Reopening built the anchor from the tabs.create() snapshot, whose url can still be "" (navigation not committed) — the stored tabUrl was empty, so closing the reopened tab hit the isReopenableUrl guard and was silently forgotten instead of re-listed. Fixed: the reopened anchor now takes its URL from the closed anchor (the URL we actually know). Notification failures now log a warning instead of debug (a failed notification was otherwise invisible — the popup entry still appeared).
+
 ## v0.5.1 (2026-11-01) — duplicate context-menu ids on restart
 - Menus are created in onInstalled, but Chrome keeps them across restarts while onInstalled fires again on every load of an unpacked extension (and on every update) — the second create threw "Cannot create item with duplicate id". Fixed by removeAll() before creating. Harmless before the fix (the original menus kept working); only console noise.
 

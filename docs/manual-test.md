@@ -41,6 +41,9 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.5.5 — saved-group reopen:
+- [ ] Anchor a tab, close its window, reopen the group from the bookmark bar tab-group button → drag the anchored tab out of the front slot → it snaps back (regression: 0.5.4 still badge-but-movable here)
+
 v0.5.4 — window close → group reopen:
 - [ ] Anchor a tab, close its window, reopen the group → tab shows badge AND cannot be dragged out of the anchored front slot (regression: used to be badge-but-movable)
 

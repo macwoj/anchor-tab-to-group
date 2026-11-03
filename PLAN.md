@@ -94,6 +94,9 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.5.5 (2026-11-03) — saved-group reopen still badge-but-movable
+- 0.5.4's heal only ran in the marker-sync path (activation/load-complete), but the drag-triggered reconcile still filtered anchors by stored windowId — so a restored tab whose stored windowId was stale stayed invisible to the lock. Fixed structurally: reconcileWindow now heals, before anything else, any anchor whose tab actually lives in that window but whose stored window/group ids are stale. Dragging the tab now triggers its own heal + snap-back.
+
 ## v0.5.4 (2026-11-03) — restored tab looked anchored but moved freely
 - Window close → group reopen left a badge-but-movable tab, on main too (not permission-caused). Cause: a restored tab can keep its tabId while its window/group ids change; the badge matches by tabId, but the window-scoped lock filters by stored windowId, and the marker-sync path never healed the mismatch (rematch only ran when no anchor was found by tabId). Fixed: syncTabMarkers now heals stale window/group ids via enforceAnchor when the live tab differs, and tabGroups.onUpdated also triggers a rematch sweep for groups that appear after the tab-creation sweep.
 

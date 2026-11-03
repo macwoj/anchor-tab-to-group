@@ -1,4 +1,4 @@
-import { TAB_GROUP_ID_NONE, getGroup } from "../lib/chrome-tabs.js";
+import { TAB_GROUP_ID_NONE, getGroup, getTab } from "../lib/chrome-tabs.js";
 import {
   loadAnchors,
   addAnchor,
@@ -11,6 +11,7 @@ import {
   addClosedAnchor,
   deleteClosedAnchor,
   restoreClosedGroup,
+  anchorIdsStale,
 } from "../lib/anchors.js";
 import { loadSettings } from "../lib/settings.js";
 import {
@@ -208,6 +209,14 @@ async function syncTabMarkers(tabId) {
   if (anchor) {
     await setMarker(tabId, anchor.groupTitle);
     await notifyMarker(tabId, true);
+    // Heal stale ids: a restored tab can keep its tabId while its
+    // window/group ids change. Without this, the badge (matched by
+    // tabId) shows while the window-scoped lock (filtered by stored
+    // windowId) never sees the anchor — badge-but-movable.
+    const tab = await getTab(tabId);
+    if (tab && anchorIdsStale(anchor, tab)) {
+      await enforceAnchor(anchor).catch(() => {});
+    }
   } else {
     void runRematch();
   }
@@ -331,9 +340,12 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   })();
 });
 
-chrome.tabGroups.onUpdated.addListener((group) =>
-  scheduleReconcile(group.windowId)
-);
+chrome.tabGroups.onUpdated.addListener((group) => {
+  scheduleReconcile(group.windowId);
+  // A restored group may appear/update after the tab-creation sweep
+  // already ran (and found no group yet): give orphans another chance.
+  void runRematch();
+});
 chrome.tabGroups.onMoved.addListener((group) =>
   scheduleReconcile(group.windowId)
 );

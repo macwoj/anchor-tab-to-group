@@ -40,7 +40,7 @@
     "scripting",
     "notifications"
   ],
-  "version": "0.5.3",
+  "version": "0.5.4",
   "optional_host_permissions": [
     "*://*/*"
   ]

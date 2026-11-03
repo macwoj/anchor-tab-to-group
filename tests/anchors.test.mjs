@@ -12,6 +12,7 @@ import {
   findClosedAnchor,
   removeClosedAnchor,
   restoreBurstClosedGroup,
+  anchorIdsStale,
   findAnchorsByWindow,
   findAnchorsByGroup,
   findGroupForAnchor,
@@ -184,6 +185,14 @@ test("restoreBurstClosedGroup leaves slow individual closes alone", () => {
   );
   assert.equal(other.restored.length, 0);
   assert.equal(other.closed.length, 1);
+});
+
+test("anchorIdsStale detects a restored tab with new window/group ids", () => {
+  const a = createAnchor(tab, group);
+  assert.equal(anchorIdsStale(a, tab), false);
+  assert.equal(anchorIdsStale(a, { ...tab, windowId: 2 }), true);
+  assert.equal(anchorIdsStale(a, { ...tab, groupId: 43 }), true);
+  assert.equal(anchorIdsStale(a, { ...tab, id: 8 }), false); // id alone is fine
 });
 
 test("groupFirstIndex returns the leftmost index of the group", () => {

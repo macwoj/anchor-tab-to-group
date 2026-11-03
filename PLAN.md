@@ -94,6 +94,9 @@ On restart / restore: re-match by URL + group title, then re-apply. Best-effort,
 - Replaced with a reconciler: pure `planGroupLayout` (lib/anchors.js) computes the correct layout — anchored tabs as a front block ordered by createdAt (first anchored, front-most), others behind in current order; `reconcileGroup/reconcileWindow` (lib/enforce.js) restore membership then apply the plan; the service worker schedules reconciles on any window event with a dirty-flag re-run (no time skip) + deferred re-checks at 300 ms / 1 s; drag-error retry extended to ~2.25 s.
 - Chrome has no API to veto a drag — the guarantee is an immediate, deterministic snap-back on drop, not a frozen tab strip.
 
+## v0.5.4 (2026-11-03) — restored tab looked anchored but moved freely
+- Window close → group reopen left a badge-but-movable tab, on main too (not permission-caused). Cause: a restored tab can keep its tabId while its window/group ids change; the badge matches by tabId, but the window-scoped lock filters by stored windowId, and the marker-sync path never healed the mismatch (rematch only ran when no anchor was found by tabId). Fixed: syncTabMarkers now heals stale window/group ids via enforceAnchor when the live tab differs, and tabGroups.onUpdated also triggers a rematch sweep for groups that appear after the tab-creation sweep.
+
 ## v0.5.3 (2026-11-03) — closing a group lost its anchors
 - "Close group" closed every tab at once, and each tab's onRemoved moved its anchor to Recently closed — so restoring the group (Ctrl+Shift+T) did not restore anchors (the orphan sweep only re-matches active anchors). Fixed: tabGroups.onRemoved now checks whether the group's tabs all closed in one burst (within 3s); if so, their anchors move back to the active list and their notifications are cleared, so a restored group re-attaches via the orphan sweep. Tabs closed one by one over a longer span stay in Recently closed.
 

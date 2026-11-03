@@ -27,6 +27,7 @@ import {
   rematchOrphanedAnchors,
 } from "../lib/enforce.js";
 import { setMarker, clearMarker, syncMarkers } from "../lib/marker.js";
+import { diag } from "../lib/debug.js";
 import {
   ensureMarkerScriptRegistered,
   enableMarkerForTab,
@@ -214,10 +215,14 @@ async function syncTabMarkers(tabId) {
     // tabId) shows while the window-scoped lock (filtered by stored
     // windowId) never sees the anchor — badge-but-movable.
     const tab = await getTab(tabId);
-    if (tab && anchorIdsStale(anchor, tab)) {
-      await enforceAnchor(anchor).catch(() => {});
+    const stale = Boolean(tab) && anchorIdsStale(anchor, tab);
+    diag("marker sync", { tabId, found: true, stored: { windowId: anchor.windowId, groupId: anchor.groupId }, live: tab ? { windowId: tab.windowId, groupId: tab.groupId } : null, stale });
+    if (stale) {
+      const result = await enforceAnchor(anchor).catch((err) => `error: ${err?.message ?? err}`);
+      diag("marker sync heal", { tabId, result });
     }
   } else {
+    diag("marker sync, no anchor — rematch", { tabId });
     void runRematch();
   }
 }
@@ -316,10 +321,14 @@ chrome.tabGroups.onCreated.addListener(() => void runRematch());
 chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   // A window/browser closing is not the tab being closed on purpose:
   // keep the anchor so the tab can be re-matched after a restart.
-  if (!shouldForgetAnchor(removeInfo)) return;
+  if (!shouldForgetAnchor(removeInfo)) {
+    diag("tab removed, window closing — anchor kept", { tabId });
+    return;
+  }
   void (async () => {
     const anchors = await loadAnchors();
     const anchor = findAnchorByTabId(anchors, tabId);
+    diag("tab removed", { tabId, anchor: anchor ? { windowId: anchor.windowId, groupId: anchor.groupId, groupTitle: anchor.groupTitle, tabUrl: anchor.tabUrl } : null });
     await deleteAnchorByTabId(tabId);
     await clearMarker(tabId);
     // Reopen prompt (default on): instead of forgetting the anchor,
@@ -360,6 +369,7 @@ chrome.tabGroups.onRemoved.addListener((group) => {
   // have finished writing the closed list.
   setTimeout(async () => {
     const restored = await restoreClosedGroup(group.id, group.windowId);
+    diag("group removed", { groupId: group.id, windowId: group.windowId, title: group.title, restored: restored.map((a) => ({ tabId: a.tabId, tabUrl: a.tabUrl })) });
     for (const anchor of restored) {
       await chrome.notifications
         .clear(closedNotificationId(anchor.tabUrl))

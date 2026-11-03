@@ -11,6 +11,7 @@ import {
   moveAnchorToClosed,
   findClosedAnchor,
   removeClosedAnchor,
+  restoreBurstClosedGroup,
   findAnchorsByWindow,
   findAnchorsByGroup,
   findGroupForAnchor,
@@ -115,6 +116,74 @@ test("moveAnchorToClosed moves the anchor aside and caps the list", () => {
     removeClosedAnchor(third.closed, "https://b/").map((x) => x.tabUrl),
     ["https://c/"]
   );
+});
+
+test("restoreBurstClosedGroup moves a burst-closed group back to anchors", () => {
+  const a = { ...createAnchor(tab, group), tabUrl: "https://a/" };
+  const b = {
+    ...createAnchor({ ...tab, id: 8 }, group),
+    tabUrl: "https://b/",
+  };
+  const closed = [
+    { ...a, closedAt: 1000 },
+    { ...b, closedAt: 1500 },
+  ];
+  const { anchors, closed: rest, restored } = restoreBurstClosedGroup(
+    [],
+    closed,
+    42,
+    1,
+    2000
+  );
+  assert.equal(restored.length, 2);
+  assert.deepEqual(rest, []);
+  assert.deepEqual(
+    anchors.map((x) => x.tabUrl),
+    ["https://a/", "https://b/"]
+  );
+  assert.equal(anchors[0].createdAt, a.createdAt); // order preserved
+  assert.equal("closedAt" in anchors[0], false);
+});
+
+test("restoreBurstClosedGroup leaves slow individual closes alone", () => {
+  const a = { ...createAnchor(tab, group), tabUrl: "https://a/" };
+  const b = { ...createAnchor(tab, group), tabUrl: "https://b/" };
+  // Closed 10s apart: individual closes that emptied the group, not a
+  // group close — entries stay in Recently closed.
+  const spread = restoreBurstClosedGroup(
+    [],
+    [
+      { ...a, closedAt: 1000 },
+      { ...b, closedAt: 11000 },
+    ],
+    42,
+    1,
+    11500
+  );
+  assert.equal(spread.restored.length, 0);
+  assert.equal(spread.closed.length, 2);
+  // Burst closes, but the group-removal check runs long after: stale.
+  const stale = restoreBurstClosedGroup(
+    [],
+    [
+      { ...a, closedAt: 1000 },
+      { ...b, closedAt: 1500 },
+    ],
+    42,
+    1,
+    20000
+  );
+  assert.equal(stale.restored.length, 0);
+  // Another group's entries are untouched.
+  const other = restoreBurstClosedGroup(
+    [],
+    [{ ...a, closedAt: 1000 }],
+    99,
+    1,
+    1500
+  );
+  assert.equal(other.restored.length, 0);
+  assert.equal(other.closed.length, 1);
 });
 
 test("groupFirstIndex returns the leftmost index of the group", () => {

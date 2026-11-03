@@ -41,6 +41,11 @@ v0.4 — strict lock:
 - [ ] Drag the second-anchored tab in front of the first-anchored → anchor order is restored
 - [ ] Drag the anchored tab itself out / to the back → it returns to its anchored slot
 
+v0.5.3 — close group:
+- [ ] Close a whole group (right-click group → Close group) → no per-tab notifications linger; popup Recently closed does NOT list its tabs
+- [ ] Restore the group (Ctrl+Shift+T) → tabs return with anchors, badges, and front order intact
+- [ ] Close tabs one by one until the group empties → each still appears under Recently closed (individual closes unaffected)
+
 v0.5.2 — reopen round-trip:
 - [ ] Close an anchored tab → Reopen from popup → close that tab again → it reappears under Recently closed (regression: used to vanish)
 

@@ -10,6 +10,7 @@ import {
   findClosedAnchor,
   addClosedAnchor,
   deleteClosedAnchor,
+  restoreClosedGroup,
 } from "../lib/anchors.js";
 import { loadSettings } from "../lib/settings.js";
 import {
@@ -337,10 +338,22 @@ chrome.tabGroups.onMoved.addListener((group) =>
   scheduleReconcile(group.windowId)
 );
 
-chrome.tabGroups.onRemoved.addListener(async (group) => {
-  // If the group is gone and its anchored tab went with it, onRemoved for
-  // the tab already cleaned up. Nothing else to do for now.
-  void group;
+chrome.tabGroups.onRemoved.addListener((group) => {
+  // "Close group" closes every tab at once, and each tab's onRemoved
+  // already moved its anchor to Recently closed. But a closed group is
+  // restorable as a unit (Ctrl+Shift+T), like a closed window — so if
+  // this group's tabs all closed in one burst, move their anchors back
+  // to the active list and the orphan sweep re-attaches them when the
+  // group is restored. Delayed briefly so the per-tab close handlers
+  // have finished writing the closed list.
+  setTimeout(async () => {
+    const restored = await restoreClosedGroup(group.id, group.windowId);
+    for (const anchor of restored) {
+      await chrome.notifications
+        .clear(closedNotificationId(anchor.tabUrl))
+        .catch(() => {});
+    }
+  }, 500);
 });
 
 // Re-match anchors (by URL + group title) after a browser restart.

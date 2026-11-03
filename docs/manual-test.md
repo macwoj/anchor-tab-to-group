@@ -68,6 +68,10 @@ v0.5.0 — reopen prompt:
 - [ ] Uncheck “Offer to reopen…” in the popup → closing an anchored tab forgets it silently (old behavior); re-check → prompt returns
 - [ ] Close a chrome:// anchored tab → no prompt (can't be recreated), anchor forgotten
 
+v0.5.6 — window move / group close-reopen reshuffle:
+- [ ] Two anchored tabs in a group → close the group → reopen it → tabs settle in anchor order after at most one corrective move, then stay put (no repeated swapping)
+- [ ] Drag a grouped anchored tab into a new window (or move the whole group) → anchor follows it: popup still shows it anchored, dragging another tab in front snaps back, no reshuffle loop
+
 v0.4.4 — toolbar badge after restore:
 - [ ] Restart Chrome → restored anchored tabs show the ⚓ badge on the toolbar icon when active (not just the title prefix), without opening the popup
 - [ ] Close a group window and reopen it (other windows open) → re-matched tabs show the ⚓ badge too

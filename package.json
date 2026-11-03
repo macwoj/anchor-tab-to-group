@@ -2,8 +2,8 @@
   "name": "anchor",
   "private": true,
   "scripts": {
-    "test": "node --test tests/anchors.test.mjs tests/enforce.test.mjs tests/tab-title.test.mjs tests/layout.test.mjs tests/settings.test.mjs tests/reopen.test.mjs tests/worker.test.mjs"
+    "test": "node --test tests/anchors.test.mjs tests/enforce.test.mjs tests/tab-title.test.mjs tests/layout.test.mjs tests/settings.test.mjs tests/reopen.test.mjs tests/worker.test.mjs tests/window-move.test.mjs"
   },
   "type": "module",
-  "version": "0.5.5"
+  "version": "0.5.6"
 }
